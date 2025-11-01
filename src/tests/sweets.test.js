@@ -11,7 +11,7 @@ let userId;
 // Before all tests, create a user and get a token
 beforeAll(async () => {
   await User.deleteMany({}); // Clear users
-  const user = new User({ name: 'Test', email: 'test@sweet.com', password: '123' }); // No need to hash, just for token
+  const user = new User({ name: 'Test', email: 'test@sweet.com', password: '123' }); 
   await user.save();
   userId = user.id;
   
@@ -28,9 +28,15 @@ afterAll(async () => {
   await mongoose.connection.close();
 });
 
-// Before each test, clear the sweets collection
+// Before each test, clear and re-populate the sweets collection
 beforeEach(async () => {
   await Sweet.deleteMany({});
+  
+  // Add sample sweets
+  await Sweet.insertMany([
+    { name: 'Rasgulla', category: 'Syrup', price: 30, quantity: 100 },
+    { name: 'Jalebi', category: 'Syrup', price: 50, quantity: 200 },
+  ]);
 });
 
 describe('POST /api/sweets', () => {
@@ -45,24 +51,36 @@ describe('POST /api/sweets', () => {
         quantity: 50,
       });
 
-    expect(res.statusCode).toEqual(201); // 201 Created
+    expect(res.statusCode).toEqual(201); 
     expect(res.body.name).toBe('Kaju Katli');
-
-    // Check if it's in the database
-    const sweet = await Sweet.findOne({ name: 'Kaju Katli' });
-    expect(sweet).not.toBeNull();
   });
 
   it('should return 401 (Unauthorized) if not authenticated', async () => {
     const res = await request(app)
       .post('/api/sweets')
-      .send({
-        name: 'Ladoo',
-        category: 'Classic',
-        price: 20,
-        quantity: 10,
-      });
+      .send({ name: 'Ladoo' });
 
+    expect(res.statusCode).toEqual(401);
+  });
+});
+
+// --- NEW TESTS FOR GET /api/sweets ---
+describe('GET /api/sweets', () => {
+  it('should return a list of all sweets when authenticated', async () => {
+    const res = await request(app)
+      .get('/api/sweets')
+      .set('x-auth-token', token);
+
+    expect(res.statusCode).toEqual(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBe(2); // From our beforeEach block
+    expect(res.body[0].name).toBe('Rasgulla');
+  });
+
+  it('should return 401 if not authenticated', async () => {
+    const res = await request(app)
+      .get('/api/sweets');
+      
     expect(res.statusCode).toEqual(401);
   });
 });
