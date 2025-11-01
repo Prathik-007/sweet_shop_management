@@ -7,4 +7,9 @@ const authController = require('../controllers/auth');
 // @access  Public
 router.post('/register', authController.registerUser);
 
+// @route   POST /api/auth/login   
+// @desc    Authenticate user & get token
+// @access  Public
+router.post('/login', authController.loginUser);
+
 module.exports = router;
