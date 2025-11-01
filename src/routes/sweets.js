@@ -18,4 +18,9 @@ router.get('/', auth, sweetsController.getAllSweets);
 // @access  Protected
 router.get('/search', auth, sweetsController.searchSweets);
 
+// @route   PUT /api/sweets/:id      <-- ADD THIS BLOCK
+// @desc    Update a sweet
+// @access  Protected
+router.put('/:id', auth, sweetsController.updateSweet);
+
 module.exports = router;

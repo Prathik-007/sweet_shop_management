@@ -1,4 +1,5 @@
 const Sweet = require('../models/Sweet');
+const mongoose = require('mongoose');
 
 exports.addSweet = async (req, res) => {
   const { name, category, price, quantity } = req.body;
@@ -62,6 +63,36 @@ exports.searchSweets = async (req, res) => {
     const sweets = await Sweet.find(query);
     res.status(200).json(sweets);
     
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+exports.updateSweet = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check for a valid Mongoose ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ msg: 'Sweet not found' });
+    }
+
+    let sweet = await Sweet.findById(id);
+
+    // Check if sweet exists (to pass the 404 test)
+    if (!sweet) {
+      return res.status(404).json({ msg: 'Sweet not found' });
+    }
+
+    // Find the sweet by ID and update it with the new data from req.body
+    // { new: true } returns the modified document rather than the original
+    sweet = await Sweet.findByIdAndUpdate(
+      id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json(sweet);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
