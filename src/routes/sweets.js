@@ -8,6 +8,9 @@ const sweetsController = require('../controllers/sweets');
 // @access  Protected
 router.post('/', auth, sweetsController.addSweet); // <-- 'auth' middleware is applied here
 
-// We will add other sweet routes here later
+// @route   GET /api/sweets         <-- ADD THIS BLOCK
+// @desc    Get all sweets
+// @access  Protected
+router.get('/', auth, sweetsController.getAllSweets);
 
 module.exports = router;

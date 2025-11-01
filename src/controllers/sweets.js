@@ -23,3 +23,12 @@ exports.addSweet = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+exports.getAllSweets = async (req, res) => {
+  try {
+    const sweets = await Sweet.find();
+    res.status(200).json(sweets);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
