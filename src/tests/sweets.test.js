@@ -36,6 +36,7 @@ beforeEach(async () => {
   await Sweet.insertMany([
     { name: 'Rasgulla', category: 'Syrup', price: 30, quantity: 100 },
     { name: 'Jalebi', category: 'Syrup', price: 50, quantity: 200 },
+    { name: 'Kaju Katli', category: 'Cashew', price: 100, quantity: 50 },
   ]);
 });
 
@@ -43,16 +44,16 @@ describe('POST /api/sweets', () => {
   it('should add a new sweet when authenticated', async () => {
     const res = await request(app)
       .post('/api/sweets')
-      .set('x-auth-token', token) // Set the auth token in the header
+      .set('x-auth-token', token)
       .send({
-        name: 'Kaju Katli',
-        category: 'Cashew',
-        price: 100,
-        quantity: 50,
+        name: 'Ladoo',
+        category: 'Classic',
+        price: 20,
+        quantity: 150,
       });
 
     expect(res.statusCode).toEqual(201); 
-    expect(res.body.name).toBe('Kaju Katli');
+    expect(res.body.name).toBe('Ladoo');
   });
 
   it('should return 401 (Unauthorized) if not authenticated', async () => {
@@ -64,7 +65,6 @@ describe('POST /api/sweets', () => {
   });
 });
 
-// --- NEW TESTS FOR GET /api/sweets ---
 describe('GET /api/sweets', () => {
   it('should return a list of all sweets when authenticated', async () => {
     const res = await request(app)
@@ -73,8 +73,7 @@ describe('GET /api/sweets', () => {
 
     expect(res.statusCode).toEqual(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(2); // From our beforeEach block
-    expect(res.body[0].name).toBe('Rasgulla');
+    expect(res.body.length).toBe(3); // From our beforeEach block
   });
 
   it('should return 401 if not authenticated', async () => {
@@ -82,5 +81,52 @@ describe('GET /api/sweets', () => {
       .get('/api/sweets');
       
     expect(res.statusCode).toEqual(401);
+  });
+});
+
+// --- NEW TESTS FOR GET /api/sweets/search ---
+describe('GET /api/sweets/search', () => {
+  it('should return 401 if not authenticated', async () => {
+    const res = await request(app).get('/api/sweets/search');
+    expect(res.statusCode).toEqual(401);
+  });
+
+  it('should find sweets by name (case-insensitive)', async () => {
+    const res = await request(app)
+      .get('/api/sweets/search?name=kaju') // Search for 'kaju'
+      .set('x-auth-token', token);
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.length).toBe(1);
+    expect(res.body[0].name).toBe('Kaju Katli');
+  });
+
+  it('should find sweets by category', async () => {
+    const res = await request(app)
+      .get('/api/sweets/search?category=Syrup')
+      .set('x-auth-token', token);
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.length).toBe(2);
+    expect(res.body[0].name).toBe('Rasgulla');
+  });
+
+  it('should find sweets by price range', async () => {
+    const res = await request(app)
+      .get('/api/sweets/search?minPrice=40&maxPrice=60')
+      .set('x-auth-token', token);
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.length).toBe(1);
+    expect(res.body[0].name).toBe('Jalebi');
+  });
+
+  it('should return an empty array if no sweets match', async () => {
+    const res = await request(app)
+      .get('/api/sweets/search?name=Chocolate')
+      .set('x-auth-token', token);
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.length).toBe(0);
   });
 });
