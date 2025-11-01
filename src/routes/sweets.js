@@ -24,9 +24,14 @@ router.get('/search', auth, sweetsController.searchSweets);
 // @access  Protected
 router.put('/:id', auth, sweetsController.updateSweet);
 
-// @route   DELETE /api/sweats/:id  <-- ADD THIS BLOCK
+// @route   DELETE /api/sweets/:id  <-- ADD THIS BLOCK
 // @desc    Delete a sweet (Admin Only)
 // @access  Protected/Admin
 router.delete('/:id', [auth, admin], sweetsController.deleteSweet); // <-- USE BOTH MIDDLEWARES 
+
+// @route   POST /api/sweets/:id/purchase  <-- ADD THIS BLOCK
+// @desc    Purchase a sweet
+// @access  Protected
+router.post('/:id/purchase', auth, sweetsController.purchaseSweet);
 
 module.exports = router;
