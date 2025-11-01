@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 
 let userToken; // For regular user
 let adminToken; // For admin user
-let sweetId; // ID for Rasgulla (quantity > 0)
+let sweetId; // ID for Rasgulla (quantity = 100)
 let outOfStockSweetId; // ID for Ladoo (quantity = 0)
 
 // Before all tests, create a user and an admin, and get tokens
@@ -58,43 +58,56 @@ describe('GET /api/sweets', () => { /* ... */ });
 describe('GET /api/sweets/search', () => { /* ... */ });
 describe('PUT /api/sweets/:id', () => { /* ... */ });
 describe('DELETE /api/sweets/:id', () => { /* ... */ });
+describe('POST /api/sweets/:id/purchase', () => { /* ... */ });
 
-// --- NEW TESTS FOR POST /api/sweets/:id/purchase ---
-describe('POST /api/sweets/:id/purchase', () => {
+// --- NEW TESTS FOR POST /api/sweets/:id/restock (Admin Only) ---
+describe('POST /api/sweets/:id/restock', () => {
   it('should return 401 (Unauthorized) if not authenticated', async () => {
     const res = await request(app)
-      .post(`/api/sweets/${sweetId}/purchase`);
+      .post(`/api/sweets/${sweetId}/restock`)
+      .send({ amount: 50 });
       
     expect(res.statusCode).toEqual(401);
   });
 
-  it('should purchase a sweet and decrease quantity by 1 if authenticated', async () => {
+  it('should return 403 (Forbidden) if user is not an Admin', async () => {
     const res = await request(app)
-      .post(`/api/sweets/${sweetId}/purchase`)
-      .set('x-auth-token', userToken); // Regular user token
+      .post(`/api/sweets/${sweetId}/restock`)
+      .set('x-auth-token', userToken) // <-- Regular user token
+      .send({ amount: 50 });
+      
+    expect(res.statusCode).toEqual(403);
+  });
+
+  it('should restock a sweet and increase quantity if user is Admin', async () => {
+    const res = await request(app)
+      .post(`/api/sweets/${sweetId}/restock`)
+      .set('x-auth-token', adminToken) // <-- Admin token
+      .send({ amount: 50 });
       
     expect(res.statusCode).toEqual(200);
-    expect(res.body.quantity).toBe(99); // 100 - 1
+    expect(res.body.quantity).toBe(150); // 100 + 50
 
     // Verify change in DB
     const updatedSweet = await Sweet.findById(sweetId);
-    expect(updatedSweet.quantity).toBe(99);
+    expect(updatedSweet.quantity).toBe(150);
   });
 
-  it('should return 400 (Bad Request) if sweet is out of stock', async () => {
+  it('should return 400 (Bad Request) if amount is missing or not positive', async () => {
     const res = await request(app)
-      .post(`/api/sweets/${outOfStockSweetId}/purchase`)
-      .set('x-auth-token', userToken);
+      .post(`/api/sweets/${sweetId}/restock`)
+      .set('x-auth-token', adminToken)
+      .send({ amount: -10 }); // Invalid amount
       
     expect(res.statusCode).toEqual(400);
-    expect(res.body.msg).toBe('Sweet is out of stock');
   });
   
   it('should return 404 if sweet ID is not found', async () => {
     const invalidId = new mongoose.Types.ObjectId().toString();
     const res = await request(app)
-      .post(`/api/sweets/${invalidId}/purchase`)
-      .set('x-auth-token', userToken);
+      .post(`/api/sweets/${invalidId}/restock`)
+      .set('x-auth-token', adminToken)
+      .send({ amount: 50 });
       
     expect(res.statusCode).toEqual(404);
   });
