@@ -13,4 +13,9 @@ router.post('/', auth, sweetsController.addSweet); // <-- 'auth' middleware is a
 // @access  Protected
 router.get('/', auth, sweetsController.getAllSweets);
 
+// @route   GET /api/sweets/search   <-- ADD THIS BLOCK
+// @desc    Search for sweets
+// @access  Protected
+router.get('/search', auth, sweetsController.searchSweets);
+
 module.exports = router;
