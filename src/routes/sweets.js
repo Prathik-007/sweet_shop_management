@@ -34,4 +34,9 @@ router.delete('/:id', [auth, admin], sweetsController.deleteSweet); // <-- USE B
 // @access  Protected
 router.post('/:id/purchase', auth, sweetsController.purchaseSweet);
 
+// @route   POST /api/sweets/:id/restock  <-- ADD THIS BLOCK
+// @desc    Restock a sweet (Admin Only)
+// @access  Protected/Admin
+router.post('/:id/restock', [auth, admin], sweetsController.restockSweet);
+
 module.exports = router;

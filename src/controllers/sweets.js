@@ -158,3 +158,38 @@ exports.purchaseSweet = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+exports.restockSweet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    // Check for a valid Mongoose ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ msg: 'Sweet not found' });
+    }
+
+    // Check if amount is valid (to pass the 400 test)
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ msg: 'Invalid restock amount' });
+    }
+
+    const sweet = await Sweet.findById(id);
+
+    // Check if sweet exists
+    if (!sweet) {
+      return res.status(404).json({ msg: 'Sweet not found' });
+    }
+
+    // Find by ID and increment the quantity by the amount
+    const updatedSweet = await Sweet.findByIdAndUpdate(
+      id,
+      { $inc: { quantity: amount } },
+      { new: true } // Return the updated document
+    );
+
+    res.status(200).json(updatedSweet);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
