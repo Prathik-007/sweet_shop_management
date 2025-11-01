@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth'); // Import our new auth middleware
+const auth = require('../middleware/auth'); 
+const admin = require('../middleware/admin');
 const sweetsController = require('../controllers/sweets');
 
 // @route   POST /api/sweets
@@ -22,5 +23,10 @@ router.get('/search', auth, sweetsController.searchSweets);
 // @desc    Update a sweet
 // @access  Protected
 router.put('/:id', auth, sweetsController.updateSweet);
+
+// @route   DELETE /api/sweats/:id  <-- ADD THIS BLOCK
+// @desc    Delete a sweet (Admin Only)
+// @access  Protected/Admin
+router.delete('/:id', [auth, admin], sweetsController.deleteSweet); // <-- USE BOTH MIDDLEWARES 
 
 module.exports = router;

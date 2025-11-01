@@ -98,3 +98,28 @@ exports.updateSweet = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+exports.deleteSweet = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check for a valid Mongoose ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ msg: 'Sweet not found' });
+    }
+
+    const sweet = await Sweet.findById(id);
+
+    // Check if sweet exists (to pass the 404 test)
+    if (!sweet) {
+      return res.status(404).json({ msg: 'Sweet not found' });
+    }
+
+    // Find by ID and remove
+    await Sweet.findByIdAndDelete(id);
+
+    res.status(200).json({ msg: 'Sweet removed' }); // To pass the test
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
