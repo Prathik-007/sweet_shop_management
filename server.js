@@ -17,7 +17,7 @@ app.use(express.json()); // Body parser
 app.get('/', (req, res) => res.send('Sweet Shop API Running'));
 
 // We will add our real routes here later
-// app.use('/api/auth', require('./src/routes/auth'));
+ app.use('/api/auth', require('./src/routes/auth'));
 // app.use('/api/sweets', require('./src/routes/sweets'));
 
 const PORT = process.env.PORT || 5000;
