@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 
 let token; // We'll store our auth token here
 let userId;
+let sweetToUpdateId; // <-- ADD THIS
 
 // Before all tests, create a user and get a token
 beforeAll(async () => {
@@ -33,14 +34,17 @@ beforeEach(async () => {
   await Sweet.deleteMany({});
   
   // Add sample sweets
-  await Sweet.insertMany([
+  const sweets = await Sweet.insertMany([
     { name: 'Rasgulla', category: 'Syrup', price: 30, quantity: 100 },
     { name: 'Jalebi', category: 'Syrup', price: 50, quantity: 200 },
     { name: 'Kaju Katli', category: 'Cashew', price: 100, quantity: 50 },
   ]);
+  
+  sweetToUpdateId = sweets[0]._id.toString(); // <-- GET ID OF RASGULLA
 });
 
 describe('POST /api/sweets', () => {
+  // ... (existing POST tests)
   it('should add a new sweet when authenticated', async () => {
     const res = await request(app)
       .post('/api/sweets')
@@ -66,6 +70,7 @@ describe('POST /api/sweets', () => {
 });
 
 describe('GET /api/sweets', () => {
+  // ... (existing GET tests)
   it('should return a list of all sweets when authenticated', async () => {
     const res = await request(app)
       .get('/api/sweets')
@@ -84,8 +89,8 @@ describe('GET /api/sweets', () => {
   });
 });
 
-// --- NEW TESTS FOR GET /api/sweets/search ---
 describe('GET /api/sweets/search', () => {
+  // ... (existing GET /search tests)
   it('should return 401 if not authenticated', async () => {
     const res = await request(app).get('/api/sweets/search');
     expect(res.statusCode).toEqual(401);
@@ -128,5 +133,48 @@ describe('GET /api/sweets/search', () => {
 
     expect(res.statusCode).toEqual(200);
     expect(res.body.length).toBe(0);
+  });
+});
+
+// --- NEW TESTS FOR PUT /api/sweets/:id ---
+describe('PUT /api/sweets/:id', () => {
+  it('should return 401 if not authenticated', async () => {
+    const res = await request(app)
+      .put(`/api/sweets/${sweetToUpdateId}`)
+      .send({ name: 'New Rasgulla' });
+      
+    expect(res.statusCode).toEqual(401);
+  });
+
+  it('should update a sweet when authenticated', async () => {
+    const newName = 'Premium Rasgulla';
+    const newPrice = 40;
+    
+    const res = await request(app)
+      .put(`/api/sweets/${sweetToUpdateId}`)
+      .set('x-auth-token', token)
+      .send({
+        name: newName,
+        price: newPrice,
+      });
+
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.name).toBe(newName);
+    expect(res.body.price).toBe(newPrice);
+
+    // Verify change in DB
+    const updatedSweet = await Sweet.findById(sweetToUpdateId);
+    expect(updatedSweet.name).toBe(newName);
+  });
+
+  it('should return 404 if sweet ID is not found', async () => {
+    const invalidId = new mongoose.Types.ObjectId().toString(); // A valid but non-existent ID
+    
+    const res = await request(app)
+      .put(`/api/sweets/${invalidId}`)
+      .set('x-auth-token', token)
+      .send({ name: 'No Sweet' });
+      
+    expect(res.statusCode).toEqual(404);
   });
 });
