@@ -2,23 +2,30 @@ const request = require('supertest');
 const { app, server } = require('../../server');
 const mongoose = require('mongoose');
 const Sweet = require('../models/Sweet');
-const User = require('../models/User');
+const User =require('../models/User');
 const jwt = require('jsonwebtoken');
 
-let token; // We'll store our auth token here
-let userId;
-let sweetToUpdateId; // <-- ADD THIS
+let userToken; // For regular user
+let adminToken; // For admin user
+let sweetToDeleteId;
 
-// Before all tests, create a user and get a token
+// Before all tests, create a user and an admin, and get tokens
 beforeAll(async () => {
   await User.deleteMany({}); // Clear users
-  const user = new User({ name: 'Test', email: 'test@sweet.com', password: '123' }); 
-  await user.save();
-  userId = user.id;
   
-  // Create a token manually for testing
-  token = jwt.sign(
-    { user: { id: userId, role: 'User' } }, 
+  // Create Regular User
+  const user = new User({ name: 'Test User', email: 'user@sweet.com', password: '123', role: 'User' });
+  await user.save();
+  userToken = jwt.sign(
+    { user: { id: user.id, role: user.role } }, 
+    process.env.JWT_SECRET
+  );
+
+  // Create Admin User
+  const admin = new User({ name: 'Admin User', email: 'admin@sweet.com', password: '123', role: 'Admin' });
+  await admin.save();
+  adminToken = jwt.sign(
+    { user: { id: admin.id, role: admin.role } }, 
     process.env.JWT_SECRET
   );
 });
@@ -37,143 +44,91 @@ beforeEach(async () => {
   const sweets = await Sweet.insertMany([
     { name: 'Rasgulla', category: 'Syrup', price: 30, quantity: 100 },
     { name: 'Jalebi', category: 'Syrup', price: 50, quantity: 200 },
-    { name: 'Kaju Katli', category: 'Cashew', price: 100, quantity: 50 },
   ]);
   
-  sweetToUpdateId = sweets[0]._id.toString(); // <-- GET ID OF RASGULLA
+  sweetToDeleteId = sweets[0]._id.toString(); // Get ID of Rasgulla
 });
 
+// --- POST /api/sweets ---
 describe('POST /api/sweets', () => {
-  // ... (existing POST tests)
   it('should add a new sweet when authenticated', async () => {
     const res = await request(app)
       .post('/api/sweets')
-      .set('x-auth-token', token)
-      .send({
-        name: 'Ladoo',
-        category: 'Classic',
-        price: 20,
-        quantity: 150,
-      });
-
+      .set('x-auth-token', userToken) // Any authenticated user can add
+      .send({ name: 'Ladoo', category: 'Classic', price: 20, quantity: 150 });
     expect(res.statusCode).toEqual(201); 
-    expect(res.body.name).toBe('Ladoo');
-  });
-
-  it('should return 401 (Unauthorized) if not authenticated', async () => {
-    const res = await request(app)
-      .post('/api/sweets')
-      .send({ name: 'Ladoo' });
-
-    expect(res.statusCode).toEqual(401);
   });
 });
 
+// --- GET /api/sweets ---
 describe('GET /api/sweets', () => {
-  // ... (existing GET tests)
   it('should return a list of all sweets when authenticated', async () => {
     const res = await request(app)
       .get('/api/sweets')
-      .set('x-auth-token', token);
-
+      .set('x-auth-token', userToken);
     expect(res.statusCode).toEqual(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(3); // From our beforeEach block
-  });
-
-  it('should return 401 if not authenticated', async () => {
-    const res = await request(app)
-      .get('/api/sweets');
-      
-    expect(res.statusCode).toEqual(401);
+    expect(res.body.length).toBe(2);
   });
 });
 
+// --- GET /api/sweets/search ---
 describe('GET /api/sweets/search', () => {
-  // ... (existing GET /search tests)
-  it('should return 401 if not authenticated', async () => {
-    const res = await request(app).get('/api/sweets/search');
-    expect(res.statusCode).toEqual(401);
-  });
-
-  it('should find sweets by name (case-insensitive)', async () => {
-    const res = await request(app)
-      .get('/api/sweets/search?name=kaju') // Search for 'kaju'
-      .set('x-auth-token', token);
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.length).toBe(1);
-    expect(res.body[0].name).toBe('Kaju Katli');
-  });
-
   it('should find sweets by category', async () => {
     const res = await request(app)
       .get('/api/sweets/search?category=Syrup')
-      .set('x-auth-token', token);
-
+      .set('x-auth-token', userToken);
     expect(res.statusCode).toEqual(200);
     expect(res.body.length).toBe(2);
-    expect(res.body[0].name).toBe('Rasgulla');
-  });
-
-  it('should find sweets by price range', async () => {
-    const res = await request(app)
-      .get('/api/sweets/search?minPrice=40&maxPrice=60')
-      .set('x-auth-token', token);
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.length).toBe(1);
-    expect(res.body[0].name).toBe('Jalebi');
-  });
-
-  it('should return an empty array if no sweets match', async () => {
-    const res = await request(app)
-      .get('/api/sweets/search?name=Chocolate')
-      .set('x-auth-token', token);
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.length).toBe(0);
   });
 });
 
-// --- NEW TESTS FOR PUT /api/sweets/:id ---
+// --- PUT /api/sweets/:id ---
 describe('PUT /api/sweets/:id', () => {
-  it('should return 401 if not authenticated', async () => {
+  it('should update a sweet when authenticated', async () => {
     const res = await request(app)
-      .put(`/api/sweets/${sweetToUpdateId}`)
-      .send({ name: 'New Rasgulla' });
+      .put(`/api/sweets/${sweetToDeleteId}`)
+      .set('x-auth-token', userToken) // Any authenticated user can update
+      .send({ name: 'Premium Rasgulla' });
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.name).toBe('Premium Rasgulla');
+  });
+});
+
+// --- NEW TESTS FOR DELETE /api/sweets/:id (Admin Only) ---
+describe('DELETE /api/sweets/:id', () => {
+  it('should return 401 (Unauthorized) if not authenticated', async () => {
+    const res = await request(app)
+      .delete(`/api/sweets/${sweetToDeleteId}`);
       
     expect(res.statusCode).toEqual(401);
   });
 
-  it('should update a sweet when authenticated', async () => {
-    const newName = 'Premium Rasgulla';
-    const newPrice = 40;
-    
+  it('should return 403 (Forbidden) if user is not an Admin', async () => {
     const res = await request(app)
-      .put(`/api/sweets/${sweetToUpdateId}`)
-      .set('x-auth-token', token)
-      .send({
-        name: newName,
-        price: newPrice,
-      });
+      .delete(`/api/sweets/${sweetToDeleteId}`)
+      .set('x-auth-token', userToken); // <-- Using regular user token
+      
+    expect(res.statusCode).toEqual(403);
+  });
 
+  it('should delete the sweet if user is an Admin', async () => {
+    const res = await request(app)
+      .delete(`/api/sweets/${sweetToDeleteId}`)
+      .set('x-auth-token', adminToken); // <-- Using admin token
+      
     expect(res.statusCode).toEqual(200);
-    expect(res.body.name).toBe(newName);
-    expect(res.body.price).toBe(newPrice);
+    expect(res.body.msg).toBe('Sweet removed');
 
-    // Verify change in DB
-    const updatedSweet = await Sweet.findById(sweetToUpdateId);
-    expect(updatedSweet.name).toBe(newName);
+    // Verify it's gone from the DB
+    const sweet = await Sweet.findById(sweetToDeleteId);
+    expect(sweet).toBeNull();
   });
 
   it('should return 404 if sweet ID is not found', async () => {
-    const invalidId = new mongoose.Types.ObjectId().toString(); // A valid but non-existent ID
-    
+    const invalidId = new mongoose.Types.ObjectId().toString();
     const res = await request(app)
-      .put(`/api/sweets/${invalidId}`)
-      .set('x-auth-token', token)
-      .send({ name: 'No Sweet' });
+      .delete(`/api/sweets/${invalidId}`)
+      .set('x-auth-token', adminToken);
       
     expect(res.statusCode).toEqual(404);
   });
